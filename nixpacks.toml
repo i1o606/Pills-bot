@@ -1,5 +1,11 @@
-[phases.build]
+[phases.setup]
+nixPkgs = ["python311"]
+
+[phases.install]
 cmds = ["pip install -r requirements.txt"]
 
+[phases.build]
+cmds = ["python -c 'import nltk; nltk.download('punkt')'"]
+
 [start]
-cmd = "python bot.py"
+cmd = "python main.py"
