@@ -1,9 +1,8 @@
 import os
-import time
 import json
 import sqlite3
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from aiogram import Bot, Dispatcher, types
@@ -92,7 +91,7 @@ def get_open_btn():
         inline_keyboard=[[
             InlineKeyboardButton(
                 text="💊 Открыть трекер",
-                web_app=types.WebAppInfo(url=os.getenv('WEBAPP_URL', 'https://pills-app.vercel.app'))
+                web_app=types.WebAppInfo(url=os.getenv('WEBAPP_URL', 'https://i1o606.github.io/Pills-app'))
             )
         ]]
     )
@@ -137,7 +136,7 @@ async def handle_pills(request):
     if not uid:
         return web.json_response({'error': 'No uid'}, status=400)
     
-    save_user_pills(safe_int_uid(uid), pills)  # ← ИСПРАВЛЕНО
+    save_user_pills(safe_int_uid(uid), pills)
     return web.json_response({'status': 'ok'})
 
 async def handle_get_pills(request):
@@ -145,7 +144,7 @@ async def handle_get_pills(request):
     if not uid:
         return web.json_response({'error': 'No uid'}, status=400)
     
-    pills = load_user_pills(safe_int_uid(uid))  # ← ИСПРАВЛЕНО
+    pills = load_user_pills(safe_int_uid(uid))
     return web.json_response({'pills': pills})
 
 async def handle_set_timezone(request):
@@ -156,7 +155,7 @@ async def handle_set_timezone(request):
     if not uid:
         return web.json_response({'error': 'No uid'}, status=400)
     
-    set_user_timezone(safe_int_uid(uid), timezone)  # ← ИСПРАВЛЕНО
+    set_user_timezone(safe_int_uid(uid), timezone)
     return web.json_response({'status': 'ok'})
 
 # ── РАССЫЛКА УВЕДОМЛЕНИЙ ──────────────────────────────────
@@ -200,13 +199,23 @@ async def handle_webhook(request):
 async def health_check(request):
     return web.Response(text="OK")
 
+# ── CORS MIDDLEWARE ────────────────────────────────────────
+@web.middleware
+async def cors_middleware(request, handler):
+    response = await handler(request)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST, GET, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
+
 # ── MAIN ────────────────────────────────────────────────────
 async def main():
     init_db()
     scheduler.add_job(send_reminders, CronTrigger(minute="*"))
     scheduler.start()
     
-    app = web.Application()
+    # Создаём приложение с CORS
+    app = web.Application(middlewares=[cors_middleware])
     app.router.add_post(f'/{TOKEN}', handle_webhook)
     app.router.add_get('/pills', handle_get_pills)
     app.router.add_post('/pills', handle_pills)
@@ -219,7 +228,7 @@ async def main():
     await site.start()
     print(f"✅ Сервер запущен на порту {PORT}")
     
-    webhook_url = f"https://{os.getenv('RAILWAY_STATIC_URL', 'localhost')}/{TOKEN}"
+    webhook_url = f"https://{os.getenv('RAILWAY_STATIC_URL', 'pills-bot-production.up.railway.app')}/{TOKEN}"
     await bot.set_webhook(webhook_url)
     print(f"✅ Вебхук установлен: {webhook_url}")
     print("✅ Бот запущен, уведомления привязаны к часовому поясу пользователя")
