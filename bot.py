@@ -71,7 +71,7 @@ def get_open_btn():
         inline_keyboard=[[
             InlineKeyboardButton(
                 text="💊 Открыть трекер",
-                web_app=types.WebAppInfo(url=os.getenv('WEBAPP_URL', 'https://i1o606.github.io/Pills-app'))
+                web_app=types.WebAppInfo(url=os.getenv('WEBAPP_URL', 'https://i1o606.github.io/Pills-app') + '?v=' + str(int(datetime.now().timestamp())))
             )
         ]]
     )
