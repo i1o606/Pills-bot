@@ -13,7 +13,7 @@ from aiohttp import web
 import pytz
 
 # ── КОНФИГ ──────────────────────────────────────────────────
-TOKEN = os.getenv('BOT_TOKEN', 'ТВОЙ_ТОКЕН')
+TOKEN = os.getenv('BOT_TOKEN', '8949544073:AAG4CHx5pd_M6a4NT_UmHPc3oO8mc32qVdE')
 PORT = int(os.getenv('PORT', 8080))
 DB_NAME = 'pills.db'
 
@@ -21,6 +21,20 @@ DB_NAME = 'pills.db'
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 scheduler = AsyncIOScheduler()
+
+# ── ВАЖНО: ФУНКЦИЯ ДЛЯ ОБРАБОТКИ UID ──────────────────────
+def safe_int_uid(uid_str):
+    """Преобразует UID в число, обрабатывая local_*"""
+    if isinstance(uid_str, int):
+        return uid_str
+    if isinstance(uid_str, str):
+        if uid_str.startswith('local_'):
+            return abs(hash(uid_str)) % (10 ** 9)
+        try:
+            return int(uid_str)
+        except ValueError:
+            return abs(hash(uid_str)) % (10 ** 9)
+    return 1
 
 # ── БАЗА ДАННЫХ ────────────────────────────────────────────
 def get_db():
@@ -30,14 +44,12 @@ def get_db():
 
 def init_db():
     with get_db() as conn:
-        # Таблица для витаминов
         conn.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
                 pills TEXT DEFAULT '[]'
             )
         ''')
-        # Таблица для настроек (часовой пояс)
         conn.execute('''
             CREATE TABLE IF NOT EXISTS users_settings (
                 user_id INTEGER PRIMARY KEY,
@@ -65,7 +77,7 @@ def get_user_timezone(user_id):
         row = conn.execute('SELECT timezone FROM users_settings WHERE user_id = ?', (user_id,)).fetchone()
         if row and row['timezone']:
             return row['timezone']
-        return 'Europe/Moscow'  # По умолчанию
+        return 'Europe/Moscow'
 
 def set_user_timezone(user_id, timezone):
     with get_db() as conn:
@@ -116,9 +128,8 @@ async def handle_any(message: types.Message):
         reply_markup=get_open_btn()
     )
 
-# ── ОБРАБОТЧИКИ ВЕБХУКА (для мини-приложения) ──────────────
+# ── ОБРАБОТЧИКИ ВЕБХУКА ──────────────────────────────────
 async def handle_pills(request):
-    """Сохранение витаминов"""
     data = await request.json()
     uid = data.get('uid')
     pills = data.get('pills', [])
@@ -126,20 +137,18 @@ async def handle_pills(request):
     if not uid:
         return web.json_response({'error': 'No uid'}, status=400)
     
-    save_user_pills(int(uid), pills)
+    save_user_pills(safe_int_uid(uid), pills)  # ← ИСПРАВЛЕНО
     return web.json_response({'status': 'ok'})
 
 async def handle_get_pills(request):
-    """Получение витаминов"""
     uid = request.query.get('uid')
     if not uid:
         return web.json_response({'error': 'No uid'}, status=400)
     
-    pills = load_user_pills(int(uid))
+    pills = load_user_pills(safe_int_uid(uid))  # ← ИСПРАВЛЕНО
     return web.json_response({'pills': pills})
 
 async def handle_set_timezone(request):
-    """Сохранение часового пояса пользователя"""
     data = await request.json()
     uid = data.get('uid')
     timezone = data.get('timezone', 'Europe/Moscow')
@@ -147,12 +156,11 @@ async def handle_set_timezone(request):
     if not uid:
         return web.json_response({'error': 'No uid'}, status=400)
     
-    set_user_timezone(int(uid), timezone)
+    set_user_timezone(safe_int_uid(uid), timezone)  # ← ИСПРАВЛЕНО
     return web.json_response({'status': 'ok'})
 
-# ── РАССЫЛКА УВЕДОМЛЕНИЙ ────────────────────────────────────
+# ── РАССЫЛКА УВЕДОМЛЕНИЙ ──────────────────────────────────
 async def send_reminders():
-    """Проверяет расписание и отправляет уведомления с учётом часового пояса пользователя"""
     now_utc = datetime.now(pytz.UTC)
     
     with get_db() as conn:
@@ -161,26 +169,16 @@ async def send_reminders():
     for row in rows:
         try:
             uid = row['user_id']
-            
-            # Получаем часовой пояс пользователя
             user_tz_str = get_user_timezone(uid)
             user_tz = pytz.timezone(user_tz_str)
-            
-            # Текущее время в часовом поясе пользователя
             now_local = now_utc.astimezone(user_tz)
             now_str = now_local.strftime("%H:%M")
             
             pills = json.loads(row['pills'])
-            
-            # Находим витамины, которые нужно принять сейчас
-            due_pills = []
-            for p in pills:
-                if p.get('takeTime') == now_str and not p.get('archived', False):
-                    # Проверяем, не принял ли уже сегодня
-                    checked_today = p.get('checked', [])
-                    # Если есть хотя бы один неотмеченный приём
-                    if any(not c for c in checked_today):
-                        due_pills.append(p['name'])
+            due_pills = [p['name'] for p in pills 
+                        if p.get('takeTime') == now_str 
+                        and not p.get('archived', False)
+                        and any(not c for c in p.get('checked', []))]
             
             if due_pills:
                 text = "💊 Время принять витамины!\n\n" + "\n".join(f"• {n}" for n in due_pills)
@@ -189,13 +187,12 @@ async def send_reminders():
                     text=text,
                     reply_markup=get_open_btn()
                 )
-                print(f"✅ Отправлено уведомление пользователю {uid}: {due_pills} в {now_str} ({user_tz_str})")
+                print(f"✅ Уведомление {uid}: {due_pills}")
         except Exception as e:
-            print(f"❌ Ошибка отправки {uid}: {e}")
+            print(f"❌ Ошибка {uid}: {e}")
 
 # ── WEB СЕРВЕР ──────────────────────────────────────────────
 async def handle_webhook(request):
-    """Обработка запросов от Telegram"""
     update = types.Update(**await request.json())
     await dp.feed_update(bot, update)
     return web.Response(status=200)
@@ -206,12 +203,9 @@ async def health_check(request):
 # ── MAIN ────────────────────────────────────────────────────
 async def main():
     init_db()
-    
-    # Запускаем планировщик — каждую минуту
     scheduler.add_job(send_reminders, CronTrigger(minute="*"))
     scheduler.start()
     
-    # Настраиваем веб-сервер
     app = web.Application()
     app.router.add_post(f'/{TOKEN}', handle_webhook)
     app.router.add_get('/pills', handle_get_pills)
@@ -219,20 +213,18 @@ async def main():
     app.router.add_post('/set_timezone', handle_set_timezone)
     app.router.add_get('/health', health_check)
     
-    # Запускаем сервер
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", PORT)
     await site.start()
     print(f"✅ Сервер запущен на порту {PORT}")
     
-    # Устанавливаем вебхук
     webhook_url = f"https://{os.getenv('RAILWAY_STATIC_URL', 'localhost')}/{TOKEN}"
     await bot.set_webhook(webhook_url)
     print(f"✅ Вебхук установлен: {webhook_url}")
-    print(f"✅ Бот запущен, уведомления привязаны к часовому поясу пользователя")
+    print("✅ Бот запущен, уведомления привязаны к часовому поясу пользователя")
     
-    await asyncio.Event().wait()  # Бесконечное ожидание
+    await asyncio.Event().wait()
 
 if __name__ == "__main__":
     asyncio.run(main())
