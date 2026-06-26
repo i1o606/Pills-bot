@@ -199,6 +199,9 @@ async def send_reminders():
             now_local = now_utc.astimezone(user_tz)
             now_str = now_local.strftime("%H:%M")
             print(f"👤 uid={uid} tz={user_tz} now_local={now_str}")
+            raw_val = row[1]['value']
+print(f"📦 raw_val type={type(raw_val)} val={raw_val[:100]}")
+pills = json.loads(raw_val)
             pills = json.loads(row[1]['value'])
             print(f"💊 Таблеток: {len(pills)}")
             print(f"💊 Raw pills: {row[1]['value'][:200]}")
