@@ -139,7 +139,7 @@ async def cmd_status(message: types.Message):
     uid = str(message.from_user.id)
     pills = load_user_pills(uid)
     if not pills:
-        await message.answer("💊 Таблеток нет. Добавь через трекер.", reply_markup=get_open_btn())
+        await message.answer("💊 Таблеток нет. Добавь через трекер.", reply_markup=get_open_btn(uid))
         return
     lines = [f"💊 Твои таблетки ({len(pills)} шт.):\n"]
     for p in pills:
