@@ -104,16 +104,14 @@ def safe_uid(uid_str):
 
 # ── BOT ─────────────────────────────────────────────────────
 
-def get_open_btn():
+def get_open_btn(uid=None):
+    base_url = os.getenv('WEBAPP_URL', 'https://i1o606.github.io/Pills-app')
+    url = base_url + (f'?uid={uid}&' if uid else '?') + 'v=' + str(int(datetime.now().timestamp()))
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[
             InlineKeyboardButton(
                 text="💊 Открыть трекер",
-                web_app=types.WebAppInfo(
-                    url=os.getenv('WEBAPP_URL', 'https://i1o606.github.io/Pills-app')
-    + '?uid=' + str(message.from_user.id if hasattr(message, 'from_user') else '')
-    + '&v=' + str(int(datetime.now().timestamp()))
-                )
+                web_app=types.WebAppInfo(url=url)
             )
         ]]
     )
