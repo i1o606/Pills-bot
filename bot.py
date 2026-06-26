@@ -111,7 +111,8 @@ def get_open_btn():
                 text="💊 Открыть трекер",
                 web_app=types.WebAppInfo(
                     url=os.getenv('WEBAPP_URL', 'https://i1o606.github.io/Pills-app')
-                    + '?v=' + str(int(datetime.now().timestamp()))
+    + '?uid=' + str(message.from_user.id if hasattr(message, 'from_user') else '')
+    + '&v=' + str(int(datetime.now().timestamp()))
                 )
             )
         ]]
