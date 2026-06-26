@@ -184,6 +184,7 @@ async def send_reminders():
     try:
         result = turso_execute('SELECT user_id, pills FROM users')
         rows = result['results'][0]['response']['result']['rows']
+        print(f"📋 UIDs в базе: {[r[0]['value'] for r in rows]}")
         print(f"👥 Пользователей в БД: {len(rows)}")
     except Exception as e:
         print(f'send_reminders fetch error: {e}')
