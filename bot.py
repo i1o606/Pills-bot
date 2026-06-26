@@ -125,14 +125,14 @@ async def cmd_start(message: types.Message):
         save_user_pills(uid, [])
     await message.answer(
         "💊 Привет! Я помогу тебе отслеживать приём витаминов.\n\nНажми кнопку ниже, чтобы открыть трекер.",
-        reply_markup=get_open_btn()
+        reply_markup=get_open_btn(uid)
     )
 
 @dp.message(Command("stop"))
 async def cmd_stop(message: types.Message):
     uid = str(message.from_user.id)
     save_user_pills(uid, [])
-    await message.answer("🔕 Данные очищены.", reply_markup=get_open_btn())
+    await message.answer("🔕 Данные очищены.", reply_markup=get_open_btn(uid))
 
 @dp.message(Command("status"))
 async def cmd_status(message: types.Message):
@@ -150,11 +150,11 @@ async def cmd_status(message: types.Message):
         status = "✅" if done else "⬜"
         lines.append(f"{status} {p.get('emoji','')} {p['name']} — {p.get('takeTime','?')}")
     lines.append(f"\nUID в базе: {uid}")
-    await message.answer("\n".join(lines), reply_markup=get_open_btn())
+    await message.answer("\n".join(lines), reply_markup=get_open_btn(uid))
 
 @dp.message()
 async def handle_any(message: types.Message):
-    await message.answer("Открывай трекер кнопкой ниже 👇", reply_markup=get_open_btn())
+    await message.answer("Открывай трекер кнопкой ниже 👇", reply_markup=get_open_btn(uid))
 
 # ── HTTP API ─────────────────────────────────────────────────
 
