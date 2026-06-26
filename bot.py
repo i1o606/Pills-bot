@@ -105,9 +105,9 @@ def safe_uid(uid_str):
 # ── BOT ─────────────────────────────────────────────────────
 
 def get_open_btn(uid=None):
-    base_url = os.getenv('WEBAPP_URL', 'https://i1o606.github.io/Pills-app')
-    url = base_url + (f'?uid={uid}&' if uid else '?') + 'v=' + str(int(datetime.now().timestamp()))
-    keyboard = InlineKeyboardMarkup(
+    base = os.getenv('WEBAPP_URL', 'https://i1o606.github.io/Pills-app')
+    url = base + (f'?uid={uid}&' if uid else '?') + 'v=' + str(int(datetime.now().timestamp()))
+    return InlineKeyboardMarkup(
         inline_keyboard=[[
             InlineKeyboardButton(
                 text="💊 Открыть трекер",
@@ -145,16 +145,15 @@ async def cmd_status(message: types.Message):
     for p in pills:
         if p.get('archived'):
             continue
-        checked = p.get('checked', [])
-        done = all(checked)
+        done = all(p.get('checked', []))
         status = "✅" if done else "⬜"
         lines.append(f"{status} {p.get('emoji','')} {p['name']} — {p.get('takeTime','?')}")
-    lines.append(f"\nUID в базе: {uid}")
+    lines.append(f"\nUID: {uid}")
     await message.answer("\n".join(lines), reply_markup=get_open_btn(uid))
 
 @dp.message()
 async def handle_any(message: types.Message):
-    await message.answer("Открывай трекер кнопкой ниже 👇", reply_markup=get_open_btn(uid))
+    await message.answer("Открывай трекер кнопкой ниже 👇", reply_markup=get_open_btn())
 
 # ── HTTP API ─────────────────────────────────────────────────
 
