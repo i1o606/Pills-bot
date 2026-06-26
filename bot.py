@@ -176,11 +176,15 @@ async def health_check(request):
 
 # ── УВЕДОМЛЕНИЯ ──────────────────────────────────────────────
 
+
+                                                                
 async def send_reminders():
     now_utc = datetime.now(pytz.UTC)
+    print(f"🕐 send_reminders запущен: {now_utc.strftime('%H:%M:%S')} UTC")
     try:
         result = turso_execute('SELECT user_id, pills FROM users')
         rows = result['results'][0]['response']['result']['rows']
+        print(f"👥 Пользователей в БД: {len(rows)}")
     except Exception as e:
         print(f'send_reminders fetch error: {e}')
         return
@@ -193,7 +197,11 @@ async def send_reminders():
             user_tz = pytz.timezone(get_user_timezone(uid))
             now_local = now_utc.astimezone(user_tz)
             now_str = now_local.strftime("%H:%M")
+            print(f"👤 uid={uid} tz={user_tz} now_local={now_str}")
             pills = json.loads(row[1]['value'])
+            print(f"💊 Таблеток: {len(pills)}")
+            for p in pills:
+                print(f"  - {p['name']} takeTime={p.get('takeTime')} checked={p.get('checked')} archived={p.get('archived')}")
             due = [p['name'] for p in pills
                    if p.get('takeTime') == now_str
                    and not p.get('archived', False)
@@ -202,6 +210,8 @@ async def send_reminders():
                 text = "💊 Время принять витамины!\n\n" + "\n".join(f"• {n}" for n in due)
                 await bot.send_message(chat_id=int(uid), text=text, reply_markup=get_open_btn())
                 print(f"✅ Уведомление {uid}: {due}")
+            else:
+                print(f"⏭ Нет подходящих таблеток для {uid} в {now_str}")
         except Exception as e:
             print(f"❌ Ошибка {uid}: {e}")
 
