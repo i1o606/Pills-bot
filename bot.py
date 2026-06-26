@@ -200,11 +200,9 @@ async def send_reminders():
             now_str = now_local.strftime("%H:%M")
             print(f"👤 uid={uid} tz={user_tz} now_local={now_str}")
             raw_val = row[1]['value']
-print(f"📦 raw_val type={type(raw_val)} val={raw_val[:100]}")
-pills = json.loads(raw_val)
-
+            print(f"📦 raw_val type={type(raw_val)} val={raw_val[:100]}")
+            pills = json.loads(raw_val)
             print(f"💊 Таблеток: {len(pills)}")
-            print(f"💊 Raw pills: {row[1]['value'][:200]}")
             for p in pills:
                 print(f"  - {p['name']} takeTime={p.get('takeTime')} checked={p.get('checked')} archived={p.get('archived')}")
             due = [p['name'] for p in pills
