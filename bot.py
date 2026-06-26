@@ -135,6 +135,24 @@ async def cmd_stop(message: types.Message):
     save_user_pills(uid, [])
     await message.answer("🔕 Данные очищены.", reply_markup=get_open_btn())
 
+@dp.message(Command("status"))
+async def cmd_status(message: types.Message):
+    uid = str(message.from_user.id)
+    pills = load_user_pills(uid)
+    if not pills:
+        await message.answer("💊 Таблеток нет. Добавь через трекер.", reply_markup=get_open_btn())
+        return
+    lines = [f"💊 Твои таблетки ({len(pills)} шт.):\n"]
+    for p in pills:
+        if p.get('archived'):
+            continue
+        checked = p.get('checked', [])
+        done = all(checked)
+        status = "✅" if done else "⬜"
+        lines.append(f"{status} {p.get('emoji','')} {p['name']} — {p.get('takeTime','?')}")
+    lines.append(f"\nUID в базе: {uid}")
+    await message.answer("\n".join(lines), reply_markup=get_open_btn())
+
 @dp.message()
 async def handle_any(message: types.Message):
     await message.answer("Открывай трекер кнопкой ниже 👇", reply_markup=get_open_btn())
