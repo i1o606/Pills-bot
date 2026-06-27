@@ -115,7 +115,6 @@ def get_open_btn(uid=None):
             )
         ]]
     )
-    return keyboard
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
@@ -123,6 +122,15 @@ async def cmd_start(message: types.Message):
     pills = load_user_pills(uid)
     if not pills:
         save_user_pills(uid, [])
+    base = os.getenv('WEBAPP_URL', 'https://i1o606.github.io/Pills-app')
+    menu_url = base + f'?uid={uid}'
+    await bot.set_chat_menu_button(
+        chat_id=message.chat.id,
+        menu_button=types.MenuButtonWebApp(
+            text="💊 Витамины",
+            web_app=types.WebAppInfo(url=menu_url)
+        )
+    )
     await message.answer(
         "💊 Привет! Я помогу тебе отслеживать приём витаминов.\n\nНажми кнопку ниже, чтобы открыть трекер.",
         reply_markup=get_open_btn(uid)
@@ -192,15 +200,12 @@ async def health_check(request):
 
 # ── УВЕДОМЛЕНИЯ ──────────────────────────────────────────────
 
-
-                                                                
 async def send_reminders():
     now_utc = datetime.now(pytz.UTC)
     print(f"🕐 send_reminders запущен: {now_utc.strftime('%H:%M:%S')} UTC")
     try:
         result = turso_execute('SELECT user_id, pills FROM users')
         rows = result['results'][0]['response']['result']['rows']
-        print(f"📋 UIDs в базе: {[r[0]['value'] for r in rows]}")
         print(f"👥 Пользователей в БД: {len(rows)}")
     except Exception as e:
         print(f'send_reminders fetch error: {e}')
@@ -214,23 +219,16 @@ async def send_reminders():
             user_tz = pytz.timezone(get_user_timezone(uid))
             now_local = now_utc.astimezone(user_tz)
             now_str = now_local.strftime("%H:%M")
-            print(f"👤 uid={uid} tz={user_tz} now_local={now_str}")
             raw_val = row[1]['value']
-            print(f"📦 raw_val type={type(raw_val)} val={raw_val[:100]}")
             pills = json.loads(raw_val)
-            print(f"💊 Таблеток: {len(pills)}")
-            for p in pills:
-                print(f"  - {p['name']} takeTime={p.get('takeTime')} checked={p.get('checked')} archived={p.get('archived')}")
             due = [p['name'] for p in pills
                    if p.get('takeTime') == now_str
                    and not p.get('archived', False)
                    and any(not c for c in p.get('checked', []))]
             if due:
                 text = "💊 Время принять витамины!\n\n" + "\n".join(f"• {n}" for n in due)
-                await bot.send_message(chat_id=int(uid), text=text, reply_markup=get_open_btn())
+                await bot.send_message(chat_id=int(uid), text=text, reply_markup=get_open_btn(uid))
                 print(f"✅ Уведомление {uid}: {due}")
-            else:
-                print(f"⏭ Нет подходящих таблеток для {uid} в {now_str}")
         except Exception as e:
             print(f"❌ Ошибка {uid}: {e}")
 
