@@ -1,7 +1,7 @@
 import os
 import json
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from aiogram import Bot, Dispatcher, types
@@ -219,8 +219,25 @@ async def send_reminders():
             user_tz = pytz.timezone(get_user_timezone(uid))
             now_local = now_utc.astimezone(user_tz)
             now_str = now_local.strftime("%H:%M")
+            today = now_local.strftime("%Y-%m-%d")
             raw_val = row[1]['value']
             pills = json.loads(raw_val)
+
+            # Сброс checked если прошло время resetTime
+            changed = False
+            for p in pills:
+                reset_time = p.get('resetTime', '00:00')
+                rh, rm = map(int, reset_time.split(':'))
+                reset_dt = now_local.replace(hour=rh, minute=rm, second=0, microsecond=0)
+                from datetime import timedelta
+                expected = today if now_local >= reset_dt else (now_local - timedelta(days=1)).strftime("%Y-%m-%d")
+                if p.get('lastResetDate', '') != expected:
+                    p['checked'] = [False] * (p.get('count') or 1)
+                    p['lastResetDate'] = expected
+                    changed = True
+            if changed:
+                save_user_pills(uid, pills)
+
             due = [p['name'] for p in pills
                    if p.get('takeTime') == now_str
                    and not p.get('archived', False)
